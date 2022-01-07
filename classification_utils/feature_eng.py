@@ -35,7 +35,7 @@ def OneClassSVM(csv_path):
 
 def NN_classify(csv_path):
     path = os.getcwd()
-    model = keras.models.load_model(path+'/classification_utils/saved_model/NN_predict_model.h5')
+    model = keras.models.load_model(path+"/classification_utils/saved_model/NN_predict_model.h5")
     df = pd.read_csv(csv_path)
     y = df.pop('label')
     ansDict2 = {0: 'nginx', 1: 'linux', 2: 'mysql', 3: 'zabbix'}
@@ -45,7 +45,7 @@ def NN_classify(csv_path):
     for i in y_pred:
         ansList.append(ansDict2.get(i))
 
-    print('\n',"[NN_classify says]", ansList,'\n')
+    print('\n', "[NN_classify says]", ansList, '\n')
     return ansList
 
 
@@ -139,39 +139,11 @@ def log2fea(csvfile):
         for index, row in df.iterrows():
             df.loc[index, 'TypeOfPunctuation'] = getTypeOfPunctuation(str(df.loc[index, '_raw']))
 
-        # # TF-IDF
-        # tfidf.caltfidf(df)
-
         # output
         df = df.drop(['_time', '_raw'], axis=1)
-        df['LogType'] = 'linux'
+        df['LogType'] = 'mysql'  # gai
 
         df_vec = df
-        arr_vec = df_vec.values
-
-        return arr_vec
-
-    from bert_serving.client import BertClient
-    import numpy as np
-
-    def getBert(df, dflen):
-        bc = BertClient(ip='10.60.38.173', check_length=False)  # ip中填入服务器地址
-        df_vec = pd.DataFrame({'embedding_vec': []})
-
-        raw_arr = []
-        for each in df['_raw']:
-            raw_arr.append(each)
-
-        for i in range(0, dflen):
-            str1 = str(raw_arr[i])
-            vec = bc.encode([str1])
-            dict = {'embedding_vec': vec[0]}
-            df_vec = df_vec.append(dict, ignore_index=True)
-            # if i == 1:
-            #     break
-            # print(i)  # 观察进度
-            i += 1
-
         arr_vec = df_vec.values
 
         return arr_vec
@@ -190,21 +162,6 @@ def log2fea(csvfile):
                 arr_arti[i][j] = vec[i][j]
 
         return arr_arti
-
-    # df2bert
-    # 测试成功
-    def df2arr_bert(vec):
-        row = vec.shape[0]  # 应该为日志的条数
-        # row = 2  # 测试
-        col_all = 1  # bert应该是固定的
-        col = len(vec[0][0])
-
-        arr_bert = np.ones((row, col), dtype=float)
-        for i in range(arr_bert.shape[0]):
-            for j in range(arr_bert.shape[1]):
-                arr_bert[i][j] = vec[i][0][j]
-
-        return arr_bert
 
     # 获得标签
     # 测试成功
@@ -255,14 +212,6 @@ def log2fea(csvfile):
         min_max_scaler = MinMaxScaler(feature_range=(0, 1))
         fea_Matrix = min_max_scaler.fit_transform(fea_Matrix)
 
-        # # 标准化，也可尝试
-        # std = StandardScaler()
-        # fea_Matrix = std.fit_transform(fea_Matrix)
-
-        # 可以使用的参数：
-        # fea_Matrix 特征矩阵
-        # lab_Cla 标签列表
-
         # 规整成csv文件
         row_collected = fea_Matrix.shape[0]
         col_collected = fea_Matrix.shape[1]
@@ -278,68 +227,34 @@ def log2fea(csvfile):
 
         return collected_data
 
-    # 主函数
-    # df_test = pd.read_csv('mysql.csv')  # 测试用
     df_test = pd.read_csv(csvfile)
-    # print(df_test.shape)
     df_testa = getArti(df_test, df_test.shape[0])
-    df_testb = getBert(df_test, df_test.shape[0])
     arr_testa = df2arr_arti(df_testa)  # 获取手工特征矩阵
-    arr_testb = df2arr_bert(df_testb)  # 获取bert特征矩阵
     arr_label = df2label(df_testa)  # 获取标签
 
-    arr_temp = np.hstack((arr_testb, arr_testa))
-    arr_final = np.hstack((arr_temp, arr_label))  # 拼接矩阵：手工+bert+标签
+    arr_final = np.hstack((arr_testa, arr_label))  # 拼接矩阵：手工+bert+标签
     list_final = arr_final.tolist()  # 转成list
 
-    # print('final_test')
-    # print(len(list_final))
-    # print(len(list_final[0]))
+    file_name = 'allfealab_nginx.csv'
 
     # 创造,清空,重塑文件
-    f = open('allfealab.csv', 'w')
+    f = open(file_name, 'w')
     f.close()
 
-    bert_head = ["vec" + str(i + 1) for i in range(arr_testb.shape[1])]
     arti_head = ["fea" + str(i + 1) for i in range(arr_testa.shape[1])]
     label_head = ["label"]
-    all_head = bert_head + arti_head + label_head
+    all_head = arti_head + label_head
 
-    # print(all_head)
-
-    # if not os.path.exists("allfealab.csv"):
-    with open("allfealab.csv", 'a+', newline='') as ff:
+    with open(file_name, 'a+', newline='') as ff:
         csv_writer = csv.writer(ff)
         csv_writer.writerow(all_head)
 
     for i in range(len(list_final)):
-        with open("allfealab.csv", 'a+', newline='') as ff:  # 输出到最终的文件
+        with open(file_name, 'a+', newline='') as ff:  # 输出到最终的文件
             csv_writer = csv.writer(ff)
             csv_writer.writerow(list_final[i])
 
-    csv_name = 'allfealab.csv'  # 输出的csv文件名称
-
-    # 数据预处理之后
-    list_processed = feaProcessing('allfealab.csv')
-
-    # 重新写成csv文件
-    # 创造,清空,重塑文件
-    f = open('allfealab_processed.csv', 'w')
-    f.close()
-
-    # if not os.path.exists("allfealab.csv"):
-    with open("allfealab_processed.csv", 'a+', newline='') as ff:
-        csv_writer = csv.writer(ff)
-        csv_writer.writerow(all_head)
-
-    for i in range(len(list_processed)):
-        with open("allfealab_processed.csv", 'a+', newline='') as ff:  # 输出到最终的文件
-            csv_writer = csv.writer(ff)
-            csv_writer.writerow(list_processed[i])
-
-    csv_name_processed = 'allfealab_processed.csv'  # 输出的csv文件名称
-
-    return csv_name_processed  # 返回拼接的特征矩阵,和数据预处理之后的特征矩阵所对应的csv文件名
+    return file_name  # 返回拼接的特征矩阵,和数据预处理之后的特征矩阵所对应的csv文件名
 
 
 def run_model(csv_path):
