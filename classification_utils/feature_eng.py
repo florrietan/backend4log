@@ -144,7 +144,7 @@ def log2fea(csvfile):
 
         # output
         df = df.drop(['_time', '_raw'], axis=1)
-        df['LogType'] = 'mysql'
+        df['LogType'] = 'linux'
 
         df_vec = df
         arr_vec = df_vec.values
@@ -170,7 +170,6 @@ def log2fea(csvfile):
             # if i == 1:
             #     break
             # print(i)  # 观察进度
-            print('[flask says] 当前正在计算第'+str(i+1)+'/'+str(dflen)+'条日志的bert向量') #观察进度
             i += 1
 
         arr_vec = df_vec.values
@@ -222,6 +221,63 @@ def log2fea(csvfile):
 
         return arr_label
 
+    # 数据处理
+    def feaProcessing(csvName):
+        # 导入原来的日志特征（和label一起）
+        with open(csvName, 'r') as c:
+            reader = csv.reader(c)
+            result_List = list(reader)
+        result_Array = np.array(result_List)
+
+        # 设置特征矩阵相关参数
+        row_bert_arti = result_Array.shape[0] - 1  # 实际上row需要-1，减去的是多余的解释行
+        col_bert_arti = result_Array.shape[1] - 1  # 减去的是label
+
+        row = row_bert_arti
+        col = col_bert_arti
+
+        fea_Matrix = np.ones((row, col))  # 特征矩阵
+        lab_Cla = []  # 多分类样本结果
+
+        # 初始化特侦矩阵
+
+        # 先获取人工特征和bert特征
+        for i in range(row):
+            for j in range(col_bert_arti):
+                fea_Matrix[i][j] = result_Array[i + 1][j]
+
+        # 初始化多分类样本结果
+        for i in range(row):
+            lab_Cla.append(result_Array[i + 1][col_bert_arti])
+
+        # 归一化，让各个特征的范围相同
+        # 按照更严格的规则（来自知乎），归一化应该等训练集和测试集划分之后再做，具体如下注释部分
+        min_max_scaler = MinMaxScaler(feature_range=(0, 1))
+        fea_Matrix = min_max_scaler.fit_transform(fea_Matrix)
+
+        # # 标准化，也可尝试
+        # std = StandardScaler()
+        # fea_Matrix = std.fit_transform(fea_Matrix)
+
+        # 可以使用的参数：
+        # fea_Matrix 特征矩阵
+        # lab_Cla 标签列表
+
+        # 规整成csv文件
+        row_collected = fea_Matrix.shape[0]
+        col_collected = fea_Matrix.shape[1]
+
+        collected_data = [[] for i in range(row_collected)]
+
+        for i in range(row_collected):
+            for j in range(col_collected):
+                collected_data[i].append(fea_Matrix[i][j])
+
+        for i in range(row_collected):
+            collected_data[i].append(lab_Cla[i])
+
+        return collected_data
+
     # 主函数
     # df_test = pd.read_csv('mysql.csv')  # 测试用
     df_test = pd.read_csv(csvfile)
@@ -236,8 +292,12 @@ def log2fea(csvfile):
     arr_final = np.hstack((arr_temp, arr_label))  # 拼接矩阵：手工+bert+标签
     list_final = arr_final.tolist()  # 转成list
 
+    # print('final_test')
+    # print(len(list_final))
+    # print(len(list_final[0]))
+
     # 创造,清空,重塑文件
-    f = open('feature.csv', 'w')
+    f = open('allfealab.csv', 'w')
     f.close()
 
     bert_head = ["vec" + str(i + 1) for i in range(arr_testb.shape[1])]
@@ -245,17 +305,41 @@ def log2fea(csvfile):
     label_head = ["label"]
     all_head = bert_head + arti_head + label_head
 
-    with open("feature.csv", 'a+', newline='') as ff:
+    # print(all_head)
+
+    # if not os.path.exists("allfealab.csv"):
+    with open("allfealab.csv", 'a+', newline='') as ff:
         csv_writer = csv.writer(ff)
         csv_writer.writerow(all_head)
 
     for i in range(len(list_final)):
-        with open("feature.csv", 'a+', newline='') as ff:  # 输出到最终的文件
+        with open("allfealab.csv", 'a+', newline='') as ff:  # 输出到最终的文件
             csv_writer = csv.writer(ff)
             csv_writer.writerow(list_final[i])
 
-    csv_name = 'feature.csv'  # 输出的csv文件名称
-    return csv_name
+    csv_name = 'allfealab.csv'  # 输出的csv文件名称
+
+    # 数据预处理之后
+    list_processed = feaProcessing('allfealab.csv')
+
+    # 重新写成csv文件
+    # 创造,清空,重塑文件
+    f = open('allfealab_processed.csv', 'w')
+    f.close()
+
+    # if not os.path.exists("allfealab.csv"):
+    with open("allfealab_processed.csv", 'a+', newline='') as ff:
+        csv_writer = csv.writer(ff)
+        csv_writer.writerow(all_head)
+
+    for i in range(len(list_processed)):
+        with open("allfealab_processed.csv", 'a+', newline='') as ff:  # 输出到最终的文件
+            csv_writer = csv.writer(ff)
+            csv_writer.writerow(list_processed[i])
+
+    csv_name_processed = 'allfealab_processed.csv'  # 输出的csv文件名称
+
+    return csv_name_processed  # 返回拼接的特征矩阵,和数据预处理之后的特征矩阵所对应的csv文件名
 
 
 def run_model(csv_path):
