@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 from tensorflow import keras
 import csv
+import os
 
 
 def get_features(file_name: str, file_dir: str):
@@ -18,20 +19,23 @@ def get_features(file_name: str, file_dir: str):
     csv_path = file_dir + '/' + file_name
     return_list = run_model(csv_path)
 
-    return 'all features done', return_list
+    return return_list
 
 
 def OneClassSVM(csv_path):
     df = pd.read_csv(csv_path)
     y = df.pop('label')
-    clf = joblib.load("saved_model/OCSVM.m")
+
+    path = os.getcwd()
+    clf = joblib.load(path+"/classification_utils/saved_model/OCSVM.m")
     y_pred_train = clf.predict(df)
-    print(y_pred_train)
+    print("OneClassSVM says:", y_pred_train)
     return y_pred_train
 
 
 def NN_classify(csv_path):
-    model = keras.models.load_model('saved_model/NN_predict_model.h5')
+    path = os.getcwd()
+    model = keras.models.load_model(path+'/classification_utils/saved_model/NN_predict_model.h5')
     df = pd.read_csv(csv_path)
     y = df.pop('label')
     ansDict2 = {0: 'nginx', 1: 'linux', 2: 'mysql', 3: 'zabbix'}
@@ -41,7 +45,7 @@ def NN_classify(csv_path):
     for i in y_pred:
         ansList.append(ansDict2.get(i))
 
-    print(ansList)
+    print('\n',"[NN_classify says]", ansList,'\n')
     return ansList
 
 
@@ -166,6 +170,7 @@ def log2fea(csvfile):
             # if i == 1:
             #     break
             # print(i)  # 观察进度
+            print('[flask says] 当前正在计算第'+str(i+1)+'/'+str(dflen)+'条日志的bert向量') #观察进度
             i += 1
 
         arr_vec = df_vec.values

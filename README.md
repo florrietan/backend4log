@@ -4,7 +4,7 @@
 
 ## backend
 
-安装flask
+需要先安装flask
 
 ```shell
 # 配置环境变量

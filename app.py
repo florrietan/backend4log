@@ -35,14 +35,17 @@ def upload_file(): # 接收前端上传的待分类的日志文件，应该只�
             file_ext = os.path.splitext(filename)[1]
             if file_ext not in upload_type:
                 return 'file type not allowed, we only allow csv xlsx and txt'
-                abort(400)
+                #abort(400)
             file_dir = os.path.join(os.getcwd(), 'upload_files')
             file_path = os.path.join(file_dir, uploaded_file.filename)
             print('[flask says] '+filename+'已收到')
 
             uploaded_file.save(file_path) # raw数据存入upload_files文件夹中
-            get_features(filename,file_dir) # 对其做特征工程
-    return 'upload succeeded!'
+            list = get_features(filename,file_dir) # 对其做特征工程
+            s = ""
+            for each in list:
+                s += str(each)
+    return 'upload succeeded! '+ s
 
 # 前端对应的url用 http://localhost:5000/class_result
 @app.route('/class_result', methods=['GET'])
